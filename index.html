@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>thegraxisreal Videos</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
         :root {
             --primary: #5e60ce;
@@ -66,7 +66,7 @@
             margin-bottom: 30px;
             align-items: center;
         }
-        .search-container input[type="text"] {
+        .search-container input[type='text'] {
             flex-grow: 1;
             padding: 12px 15px;
             border: 1px solid #ccc;
@@ -75,7 +75,7 @@
             outline: none;
             transition: var(--transition);
         }
-        .search-container input[type="text"]:focus {
+        .search-container input[type='text']:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(94, 96, 206, 0.2);
         }
@@ -112,7 +112,7 @@
             height: 100%;
             border: none;
         }
-        .search-results-container { /* This class is still used for the grid layout */
+        .search-results-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
@@ -159,16 +159,11 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* Responsive adjustments */
         @media (max-width: 768px) {
             body { padding-top: 70px; }
-            .search-container {
-                flex-direction: column;
-            }
-            .search-container input[type="text"],
-            .search-container button {
-                width: 100%;
-            }
+            .search-container { flex-direction: column; }
+            .search-container input[type='text'],
+            .search-container button { width: 100%; }
         }
     </style>
 </head>
@@ -181,22 +176,20 @@
 
     <div class="container">
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search for YouTube videos...">
+            <input type="text" id="searchInput" placeholder="Search for YouTube videos..." />
             <button id="searchButton">Search</button>
         </div>
 
         <div class="video-player-container" id="videoPlayerContainer">
             <iframe id="videoPlayer" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
-        
+
         <h2 id="resultsTitle" style="margin-bottom: 20px; font-weight: 600; color: var(--dark);">Trending Videos</h2>
-        <div id="videoResultsDisplay" class="search-results-container">
-            <!-- Videos (trending or search results) will be populated here -->
-        </div>
+        <div id="videoResultsDisplay" class="search-results-container"></div>
     </div>
 
     <script>
-        const API_KEY = 'AIzaSyChHU701dMLcnHcTLucX3R-W4Y_OvFacN8'; // User's API Key
+        const API_KEY = 'AIzaSyChHU701dMLcnHcTLucX3R-W4Y_OvFacN8'; // Your API Key
         const searchInput = document.getElementById('searchInput');
         const searchButton = document.getElementById('searchButton');
         const videoResultsDisplay = document.getElementById('videoResultsDisplay');
@@ -204,44 +197,61 @@
         const videoPlayer = document.getElementById('videoPlayer');
         const videoPlayerContainer = document.getElementById('videoPlayerContainer');
 
-        searchButton.addEventListener('click', searchVideos);
-        searchInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                searchVideos();
-            }
-        });
+        // --- Storage helpers (localStorage + cookie) ---
+        const LAST_SEARCH_KEY = 'lastSearch';
 
-        async function fetchTrendingVideos() {
-            resultsTitle.textContent = 'Trending Videos';
-            // videoResultsDisplay.innerHTML = '<p>Loading trending videos...</p>'; // Optional loading message
-            const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=US&maxResults=12&key=${API_KEY}`;
-
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('YouTube API Error (Trending):', errorData);
-                    alert(`Error fetching trending videos: ${errorData.error.message}. Please check your API key and quota.`);
-                    videoResultsDisplay.innerHTML = '<p>Could not load trending videos. Check console for details.</p>';
-                    return;
+        function setCookie(name, value, days = 365) {
+            const d = new Date();
+            d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+            document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;
+        }
+        function getCookie(name) {
+            const cname = encodeURIComponent(name) + '=';
+            const parts = document.cookie.split(';');
+            for (let c of parts) {
+                c = c.trim();
+                if (c.indexOf(cname) === 0) {
+                    return decodeURIComponent(c.substring(cname.length));
                 }
-                const data = await response.json();
-                displayResults(data.items, false); // isSearchResult = false
-            } catch (error) {
-                console.error('Error fetching trending videos:', error);
-                alert('An error occurred while fetching trending videos. Please check the console for details.');
-                videoResultsDisplay.innerHTML = '<p>Could not load trending videos. Check console for details.</p>';
             }
+            return null;
+        }
+        function saveLastSearch(term) {
+            try { localStorage.setItem(LAST_SEARCH_KEY, term); } catch (e) {}
+            setCookie(LAST_SEARCH_KEY, term);
+        }
+        function loadLastSearch() {
+            try {
+                const ls = localStorage.getItem(LAST_SEARCH_KEY);
+                if (ls) return ls;
+            } catch (e) {}
+            return getCookie(LAST_SEARCH_KEY);
         }
 
-        async function searchVideos() {
+        // --- UI Handlers ---
+        searchButton.addEventListener('click', () => handleUserSearch());
+        searchInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') handleUserSearch();
+        });
+
+        function handleUserSearch() {
             const query = searchInput.value.trim();
             if (!query) {
                 alert('Please enter a search term.');
                 return;
             }
-            resultsTitle.textContent = `Search Results for "${query}"`;
-            // videoResultsDisplay.innerHTML = `<p>Searching for "${query}"...</p>`; // Optional loading message
+            // For user-initiated searches, show normal search title and save term
+            runSearch(query, { showAsRecommendation: false, persist: true });
+        }
+
+        async function runSearch(query, { showAsRecommendation = false, persist = false } = {}) {
+            if (showAsRecommendation) {
+                // Do NOT reveal the term; just show the recommendation banner
+                resultsTitle.textContent = 'Recommended based on your Intrests';
+            } else {
+                resultsTitle.textContent = `Search Results for "${query}"`;
+            }
+
             const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=${API_KEY}&maxResults=12&type=video`;
 
             try {
@@ -249,36 +259,58 @@
                 if (!response.ok) {
                     const errorData = await response.json();
                     console.error('YouTube API Error (Search):', errorData);
-                    alert(`Error fetching search results: ${errorData.error.message}. Please check your API key and quota.`);
-                    videoResultsDisplay.innerHTML = '<p>Could not load search results. Check console for details.</p>';
+                    alert(`Error fetching search results: ${errorData.error?.message || response.status}`);
+                    // Fallback to trending if this was a recommendation load
+                    if (showAsRecommendation) fetchTrendingVideos();
                     return;
                 }
                 const data = await response.json();
-                displayResults(data.items, true); // isSearchResult = true
+                displayResults(data.items, true);
+                if (persist) saveLastSearch(query);
             } catch (error) {
                 console.error('Error fetching search results:', error);
                 alert('An error occurred while searching for videos. Please check the console for details.');
-                videoResultsDisplay.innerHTML = '<p>Could not load search results. Check console for details.</p>';
+                if (showAsRecommendation) fetchTrendingVideos();
+            }
+        }
+
+        async function fetchTrendingVideos() {
+            resultsTitle.textContent = 'Trending Videos';
+            const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=US&maxResults=12&key=${API_KEY}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('YouTube API Error (Trending):', errorData);
+                    alert(`Error fetching trending videos: ${errorData.error?.message || response.status}`);
+                    videoResultsDisplay.innerHTML = '<p>Could not load trending videos. Check console for details.</p>';
+                    return;
+                }
+                const data = await response.json();
+                displayResults(data.items, false);
+            } catch (error) {
+                console.error('Error fetching trending videos:', error);
+                alert('An error occurred while fetching trending videos. Please check the console for details.');
+                videoResultsDisplay.innerHTML = '<p>Could not load trending videos. Check console for details.</p>';
             }
         }
 
         function displayResults(videos, isSearchResult = true) {
-            videoResultsDisplay.innerHTML = ''; // Clear previous results
+            videoResultsDisplay.innerHTML = '';
             if (!videos || videos.length === 0) {
                 videoResultsDisplay.innerHTML = '<p>No videos found.</p>';
                 return;
             }
-
-            videos.forEach(video => {
+            videos.forEach((video) => {
                 const videoId = isSearchResult ? video.id.videoId : video.id;
                 const title = video.snippet.title;
                 const description = video.snippet.description;
-                const thumbnailUrl = video.snippet.thumbnails.medium.url;
+                const thumbnailUrl = (video.snippet.thumbnails && (video.snippet.thumbnails.medium || video.snippet.thumbnails.default)) ? (video.snippet.thumbnails.medium?.url || video.snippet.thumbnails.default?.url) : '';
 
                 const videoItem = document.createElement('div');
                 videoItem.classList.add('video-item');
                 videoItem.innerHTML = `
-                    <img src="${thumbnailUrl}" alt="${title}">
+                    <img src="${thumbnailUrl}" alt="${title}" />
                     <div class="video-item-content">
                         <h3>${title}</h3>
                         <p>${description || 'No description available.'}</p>
@@ -291,16 +323,23 @@
 
         function playVideo(videoId) {
             videoPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-            videoPlayerContainer.style.display = 'block'; // Ensure player is visible
+            videoPlayerContainer.style.display = 'block';
             videoPlayerContainer.scrollIntoView({ behavior: 'smooth' });
         }
 
         // Initially hide the video player until a video is selected
         videoPlayerContainer.style.display = 'none';
 
-        // Fetch trending videos when the page loads
-        document.addEventListener('DOMContentLoaded', fetchTrendingVideos);
-
+        // On load: try to show personalized recommendations; otherwise show trending
+        document.addEventListener('DOMContentLoaded', () => {
+            const last = loadLastSearch();
+            if (last && last.trim()) {
+                // Important: do NOT put it into the input, keep search bar empty
+                runSearch(last, { showAsRecommendation: true, persist: false });
+            } else {
+                fetchTrendingVideos();
+            }
+        });
     </script>
 </body>
 </html>
